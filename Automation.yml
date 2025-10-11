@@ -1,0 +1,14 @@
+pages:
+  page1:
+    items:
+      '1':
+        material: CHEST
+        lore:
+        - '&cThis chest sells its contents'
+        - '&cautomatically every &e5m 0s'
+        - '&aPlace this chest down and'
+        - '&aleft-click it to get more info'
+        buy: 10000.0
+        sell: -1.0
+        name: §7§lSell chest
+        autosell: true
