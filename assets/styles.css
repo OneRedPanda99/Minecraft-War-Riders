@@ -279,6 +279,19 @@ a {
   border-bottom: 1px solid var(--border);
   vertical-align: top;
 }
+.table tbody td.icon-cell {
+  width: 44px;
+  padding-right: 6px;
+}
+.item-icon {
+  width: 28px;
+  height: 28px;
+  image-rendering: pixelated;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel) 86%, var(--bg));
+  border: 1px solid var(--border);
+  display: block;
+}
 .table tbody tr:hover td {
   background: color-mix(in srgb, var(--accent) 6%, var(--panel));
 }

@@ -1,5 +1,10 @@
 /* global jsyaml */
 (() => {
+  // mcasset.cloud mirrors official client assets in a stable URL format.
+  // minecraft.net does not provide a reliable per-item icon endpoint.
+  const MC_ASSET_VERSION = "1.20.4";
+  const MC_ASSET_BASE = `https://mcasset.cloud/${MC_ASSET_VERSION}/assets/minecraft/textures`;
+
   const CATEGORIES = [
     { id: "Z_EverythingElse", file: "Z_EverythingElse.yml", label: "Everything Else" },
     { id: "Blocks", file: "Blocks.yml", label: "Blocks" },
@@ -128,6 +133,52 @@
     return out;
   }
 
+  function materialToTextureName(material) {
+    return normalizeText(material).replaceAll(" ", "_").toLowerCase();
+  }
+
+  function textureCandidates(material) {
+    const name = materialToTextureName(material);
+    if (!name) return [];
+
+    // Most inventory icons are item textures; many blocks exist only as block textures.
+    // We'll try both with a tiny heuristic order for common block-ish names.
+    const preferBlock =
+      /(_block|_bricks|_brick|_planks|_stairs|_slab|_wall|_log|_wood|_ore|_glass|_terracotta|_concrete|_wool|_sandstone|_stone|_deepslate)$/.test(
+        name,
+      ) || ["stone", "dirt", "grass_block", "cobblestone", "netherrack", "end_stone"].includes(name);
+
+    const blockUrl = `${MC_ASSET_BASE}/block/${encodeURIComponent(name)}.png`;
+    const itemUrl = `${MC_ASSET_BASE}/item/${encodeURIComponent(name)}.png`;
+
+    return preferBlock ? [blockUrl, itemUrl] : [itemUrl, blockUrl];
+  }
+
+  function createItemIcon(material) {
+    const img = document.createElement("img");
+    img.className = "item-icon";
+    img.loading = "lazy";
+    img.decoding = "async";
+    img.alt = material ? `${material} icon` : "Item icon";
+
+    const candidates = textureCandidates(material);
+    let idx = 0;
+
+    const tryNext = () => {
+      if (idx >= candidates.length) {
+        img.removeAttribute("src");
+        img.alt = material ? `${material} (icon unavailable)` : "Icon unavailable";
+        return;
+      }
+      img.src = candidates[idx];
+      idx += 1;
+    };
+
+    img.addEventListener("error", tryNext);
+    tryNext();
+    return img;
+  }
+
   function render(items) {
     const filtered = applyFilters(items);
     els.itemsTbody.textContent = "";
@@ -135,6 +186,10 @@
     const frag = document.createDocumentFragment();
     for (const it of filtered) {
       const tr = document.createElement("tr");
+
+      const tdIcon = document.createElement("td");
+      tdIcon.className = "icon-cell";
+      tdIcon.appendChild(createItemIcon(it.material || ""));
 
       const tdMaterial = document.createElement("td");
       tdMaterial.innerHTML = `<span class="mono">${escapeHtml(it.material || "—")}</span>`;
@@ -194,7 +249,7 @@
 
       tdDetails.appendChild(details);
 
-      tr.append(tdMaterial, tdBuy, tdSell, tdName, tdDetails);
+      tr.append(tdIcon, tdMaterial, tdBuy, tdSell, tdName, tdDetails);
       frag.appendChild(tr);
     }
 
