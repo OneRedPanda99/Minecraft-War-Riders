@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Minecraft War Riders — Shop Browser</title>
+    <meta
+      name="description"
+      content="Browse Minecraft shop YAML files with search, filters, and sorting."
+    />
+    <link rel="stylesheet" href="./assets/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-header">
+      <div class="container header-inner">
+        <div class="brand">
+          <div class="brand-title">Minecraft War Riders</div>
+          <div class="brand-subtitle">Shop YAML Browser</div>
+        </div>
+
+        <div class="header-actions">
+          <button class="btn btn-quiet" id="toggleTheme" type="button" aria-pressed="false">
+            Theme
+          </button>
+          <a class="btn btn-quiet" href="https://github.com/" target="_blank" rel="noreferrer">
+            GitHub
+          </a>
+        </div>
+      </div>
+    </header>
+
+    <main id="main" class="container">
+      <section class="hero">
+        <h1 class="hero-title">Browse item pricing &amp; metadata</h1>
+        <p class="hero-text">
+          Loads the YAML files in this repo directly in your browser. Use search, category filters,
+          and sorting to find anything fast.
+        </p>
+      </section>
+
+      <section class="panel controls" aria-label="Filters and controls">
+        <div class="control-row">
+          <label class="control">
+            <span class="control-label">Category</span>
+            <select id="categorySelect" class="control-input"></select>
+          </label>
+
+          <label class="control control-grow">
+            <span class="control-label">Search</span>
+            <input
+              id="searchInput"
+              class="control-input"
+              type="search"
+              placeholder="material, name, lore…"
+              autocomplete="off"
+            />
+          </label>
+
+          <label class="control">
+            <span class="control-label">Sort</span>
+            <select id="sortSelect" class="control-input">
+              <option value="material:asc">Material (A → Z)</option>
+              <option value="material:desc">Material (Z → A)</option>
+              <option value="buy:asc">Buy (low → high)</option>
+              <option value="buy:desc">Buy (high → low)</option>
+              <option value="sell:asc">Sell (low → high)</option>
+              <option value="sell:desc">Sell (high → low)</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="control-row control-row-tight">
+          <label class="toggle">
+            <input id="hideNoPrice" type="checkbox" />
+            <span>Hide items with no price</span>
+          </label>
+          <label class="toggle">
+            <input id="onlyAutosell" type="checkbox" />
+            <span>Only autosell</span>
+          </label>
+
+          <div class="spacer"></div>
+
+          <button id="refreshBtn" class="btn" type="button">Reload</button>
+        </div>
+
+        <div class="status-row">
+          <div class="status" id="statusText" role="status" aria-live="polite"></div>
+          <div class="status-hint" id="statusHint"></div>
+        </div>
+      </section>
+
+      <section class="panel results" aria-label="Results">
+        <div class="results-header">
+          <div class="results-title" id="resultsTitle">Items</div>
+          <div class="results-meta" id="resultsMeta"></div>
+        </div>
+
+        <div class="table-wrap" role="region" aria-label="Items table" tabindex="0">
+          <table class="table" id="itemsTable">
+            <thead>
+              <tr>
+                <th scope="col">Material</th>
+                <th scope="col">Buy</th>
+                <th scope="col">Sell</th>
+                <th scope="col">Name</th>
+                <th scope="col">Details</th>
+              </tr>
+            </thead>
+            <tbody id="itemsTbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <div>
+          Built as a static page for GitHub Pages. Data source: repository YAML files.
+        </div>
+      </div>
+    </footer>
+
+    <script
+      src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script src="./assets/app.js" defer></script>
+  </body>
+</html>
