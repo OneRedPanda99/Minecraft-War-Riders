@@ -6,6 +6,7 @@
   const MC_ASSET_BASE = `https://mcasset.cloud/${MC_ASSET_VERSION}/assets/minecraft/textures`;
 
   const CATEGORIES = [
+    { id: "ALL", file: null, label: "All categories" },
     { id: "Z_EverythingElse", file: "Z_EverythingElse.yml", label: "Everything Else" },
     { id: "Blocks", file: "Blocks.yml", label: "Blocks" },
     { id: "Decoration", file: "Decoration.yml", label: "Decoration" },
@@ -39,12 +40,15 @@
     resultsMeta: $("resultsMeta"),
     itemsTbody: $("itemsTbody"),
     toggleTheme: $("toggleTheme"),
+    githubLink: $("githubLink"),
   };
 
   /** @type {Array<any>} */
   let rawItems = [];
   /** @type {string} */
   let currentCategoryId = "";
+  /** @type {number | null} */
+  let renderTimer = null;
 
   function safeNumber(n) {
     const v = Number(n);
@@ -74,6 +78,11 @@
   function setStatus(text, hint = "") {
     els.statusText.textContent = text;
     els.statusHint.textContent = hint;
+  }
+
+  function debounceRender(delayMs = 120) {
+    if (renderTimer != null) window.clearTimeout(renderTimer);
+    renderTimer = window.setTimeout(() => render(rawItems), delayMs);
   }
 
   function getSort() {
@@ -179,9 +188,44 @@
     return img;
   }
 
+  async function copyText(text) {
+    const t = String(text ?? "");
+    try {
+      await navigator.clipboard.writeText(t);
+      setStatus("Copied to clipboard.", t);
+    } catch {
+      // Fallback for older/locked-down contexts
+      const ta = document.createElement("textarea");
+      ta.value = t;
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      ta.style.top = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        setStatus("Copied to clipboard.", t);
+      } finally {
+        ta.remove();
+      }
+    }
+  }
+
   function render(items) {
     const filtered = applyFilters(items);
     els.itemsTbody.textContent = "";
+
+    if (filtered.length === 0) {
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.className = "empty";
+      td.textContent = items.length === 0 ? "No items loaded." : "No results. Try a different search or filter.";
+      tr.appendChild(td);
+      els.itemsTbody.appendChild(tr);
+      els.resultsMeta.textContent = `0 shown / ${items.length.toLocaleString()} loaded`;
+      return;
+    }
 
     const frag = document.createDocumentFragment();
     for (const it of filtered) {
@@ -192,7 +236,23 @@
       tdIcon.appendChild(createItemIcon(it.material || ""));
 
       const tdMaterial = document.createElement("td");
-      tdMaterial.innerHTML = `<span class="mono">${escapeHtml(it.material || "—")}</span>`;
+      const materialRow = document.createElement("div");
+      materialRow.style.display = "flex";
+      materialRow.style.alignItems = "center";
+      materialRow.style.gap = "10px";
+
+      const materialText = document.createElement("span");
+      materialText.className = "mono";
+      materialText.textContent = it.material || "—";
+
+      const copyBtn = document.createElement("button");
+      copyBtn.type = "button";
+      copyBtn.className = "btn-inline";
+      copyBtn.textContent = "Copy";
+      copyBtn.addEventListener("click", () => copyText(it.material || ""));
+
+      materialRow.append(materialText, copyBtn);
+      tdMaterial.appendChild(materialRow);
 
       const tdBuy = document.createElement("td");
       tdBuy.textContent = money(it.buy);
@@ -311,12 +371,21 @@
     return flattened;
   }
 
+  async function fetchAndFlattenCategory(cat) {
+    if (!cat?.file) return [];
+    const res = await fetch(`./${encodeURIComponent(cat.file)}`, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status} while fetching ${cat.file}`);
+    const text = await res.text();
+    const doc = window.jsyaml.load(text);
+    return flattenYaml(doc, cat.label);
+  }
+
   async function loadCategory(categoryId) {
     const cat = CATEGORIES.find((c) => c.id === categoryId) || CATEGORIES[0];
     if (!cat) return;
 
     currentCategoryId = cat.id;
-    setStatus(`Loading ${cat.label}…`, cat.file);
+    setStatus(`Loading ${cat.label}…`, cat.file || "");
 
     if (!window.jsyaml) {
       setStatus("YAML parser failed to load.", "js-yaml missing");
@@ -326,13 +395,28 @@
     }
 
     try {
-      const res = await fetch(`./${encodeURIComponent(cat.file)}`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status} while fetching ${cat.file}`);
+      if (cat.id === "ALL") {
+        const cats = CATEGORIES.filter((c) => c.file);
+        const settled = await Promise.allSettled(cats.map((c) => fetchAndFlattenCategory(c)));
 
-      const text = await res.text();
-      const doc = window.jsyaml.load(text);
-      rawItems = flattenYaml(doc, cat.label);
+        const okItems = [];
+        const failures = [];
+        for (let i = 0; i < settled.length; i += 1) {
+          const s = settled[i];
+          const c = cats[i];
+          if (s.status === "fulfilled") okItems.push(...s.value);
+          else failures.push(c?.file || c?.id || "unknown");
+        }
 
+        rawItems = okItems;
+        els.resultsTitle.textContent = `${cat.label}`;
+        const hint = failures.length ? `missing: ${failures.join(", ")}` : `${rawItems.length.toLocaleString()} items`;
+        setStatus(`Loaded ${cat.label}.`, hint);
+        render(rawItems);
+        return;
+      }
+
+      rawItems = await fetchAndFlattenCategory(cat);
       setStatus(`Loaded ${cat.label}.`, `${rawItems.length.toLocaleString()} items`);
       els.resultsTitle.textContent = `${cat.label}`;
       render(rawItems);
@@ -384,20 +468,43 @@
   }
 
   function setupEvents() {
-    const rerender = () => render(rawItems);
-    els.searchInput.addEventListener("input", rerender);
-    els.sortSelect.addEventListener("change", rerender);
-    els.hideNoPrice.addEventListener("change", rerender);
-    els.onlyAutosell.addEventListener("change", rerender);
+    els.searchInput.addEventListener("input", () => debounceRender(120));
+    els.sortSelect.addEventListener("change", () => render(rawItems));
+    els.hideNoPrice.addEventListener("change", () => render(rawItems));
+    els.onlyAutosell.addEventListener("change", () => render(rawItems));
 
     els.categorySelect.addEventListener("change", () => loadCategory(els.categorySelect.value));
     els.refreshBtn.addEventListener("click", () => loadCategory(currentCategoryId || els.categorySelect.value));
+
+    // Keyboard shortcut: "/" focuses search (common in dashboards)
+    window.addEventListener("keydown", (e) => {
+      if (e.key !== "/") return;
+      const active = document.activeElement;
+      const isTyping =
+        active &&
+        (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.getAttribute("contenteditable") === "true");
+      if (isTyping) return;
+      e.preventDefault();
+      els.searchInput.focus();
+    });
+  }
+
+  function setupGithubLink() {
+    if (!els.githubLink) return;
+    // Best-effort guess: if hosted on GitHub Pages, origin is *github.io* and pathname begins with /<repo>/
+    const path = window.location.pathname || "/";
+    const parts = path.split("/").filter(Boolean);
+    const repo = parts.length ? parts[0] : "Minecraft-War-Riders";
+    els.githubLink.href = `https://github.com/${repo}`;
+    // If you’re not on Pages, at least don’t send users to github.com root.
+    els.githubLink.textContent = "Repo";
   }
 
   function init() {
     setupCategorySelect();
     setupEvents();
     setupThemeToggle();
+    setupGithubLink();
     loadCategory(els.categorySelect.value);
   }
 

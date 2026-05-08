@@ -209,6 +209,27 @@ a {
   background: transparent;
 }
 
+.btn-inline {
+  appearance: none;
+  font: inherit;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  padding: 2px 8px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.btn-inline:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--accent) 25%, var(--border));
+}
+.btn-inline:focus {
+  outline: none;
+  box-shadow: 0 0 0 4px var(--focus);
+}
+
 .status-row {
   display: flex;
   justify-content: space-between;
@@ -294,6 +315,12 @@ a {
 }
 .table tbody tr:hover td {
   background: color-mix(in srgb, var(--accent) 6%, var(--panel));
+}
+
+.empty {
+  padding: 18px 10px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .pill {
